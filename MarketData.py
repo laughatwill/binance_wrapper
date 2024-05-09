@@ -1,7 +1,7 @@
-from websocket import create_connection
 import websocket
 import logging
-from apscheduler.schedulers.background import BackgroundScheduler
+from utils import TimeLoop
+import rel
 
 logger = logging.getLogger('wrapper')
 
@@ -28,7 +28,7 @@ class BinanceWebSocketApp:
         self.custom_on_close = on_close if on_close is not None else lambda ws, close_status_code, close_msg: logger.debug('Closed connection')
         self.custom_on_message = on_message if on_message is not None else lambda ws, message: logger.debug(message)
         self.ws = websocket.WebSocketApp(base_url['futures'] + f'stream?streams={streams}', on_message=self.on_message, on_open=self.on_open, on_error=self.on_error, on_close=self.on_close)
-        self.scheduler  = None
+        self.time_loop = None
     
     def on_message(self, ws, message):
         self.message_count += 1
@@ -47,7 +47,7 @@ class BinanceWebSocketApp:
         logger.debug(f'Received {self.message_count} messages')
         self.message_count = 0
     
-    def run(self, dispatcher = None):
+    def run(self, dispatcher = rel):
         self.ws.run_forever(
             reconnect=0,
             http_proxy_host='127.0.0.1',
@@ -55,5 +55,4 @@ class BinanceWebSocketApp:
             proxy_type='http',
             dispatcher = dispatcher
         )
-        self.scheduler = BackgroundScheduler()
-        self.scheduler.add_job(self.record_statistics, 'interval', seconds=60)
+        self.time_loop = TimeLoop(60, self.record_statistics)
